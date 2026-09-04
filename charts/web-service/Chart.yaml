@@ -1,0 +1,6 @@
+apiVersion: v2
+name: web-service
+description: One deployable service - Deployment, Service, optional HTTPRoute. Deploys into a namespace the tenant chart already created.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

@@ -1,0 +1,156 @@
+# One deployable service. Deploys INTO a namespace that already exists - the
+# tenant chart creates the namespace, quota, network policies and database.
+#
+# Release name shapes every object: release `hrms-frontend` in namespace `dev`
+# gives `hrms-frontend-web-service`. Deploy many of these per namespace.
+
+replicaCount: 1
+
+image:
+  # Split out so a service can come from a different registry than the default.
+  registry: ghcr.io/astergazetech
+  repository: ""          # required, e.g. hamro-hrms-fe
+  pullPolicy: IfNotPresent
+  # Defaults to Chart.appVersion. Pin it per environment.
+  tag: ""
+
+# Registries that need auth. Create the Secret in this namespace first
+# (`make registry-secret`); the chart only references it.
+imagePullSecrets: []
+  # - name: regcred
+
+nameOverride: ""
+fullnameOverride: ""
+
+extraLabels: {}
+
+serviceAccount:
+  create: true
+  # Off unless the workload calls the Kubernetes API. A mounted token is a
+  # credential sitting in every container.
+  automount: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+# Tenant namespaces enforce pod-security `restricted`. These defaults satisfy
+# it; loosening them means the pod is rejected at admission and never created,
+# so there is no crash to read.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+service:
+  enabled: true
+  port: 8080
+  # Container port, when it differs from the service port. Must be >= 1024:
+  # binding lower needs CAP_NET_BIND_SERVICE, which is dropped above.
+  targetPort: ""
+
+# Either a plain map:
+#   env:
+#     TEST: testvalue
+# or the full Kubernetes list, needed for secretKeyRef and fieldRef:
+#   env:
+#     - name: STRIPE_KEY
+#       valueFrom:
+#         secretKeyRef: { name: acme-stripe, key: token }
+# Pods roll when this changes (the Deployment carries a checksum of it).
+env: {}
+
+envFrom: []
+  # - configMapRef: { name: acme-config }
+  # - secretRef:    { name: acme-secrets }
+
+command: []
+args: []
+
+# Public traffic: Cloudflare -> tunnel -> Traefik -> this Gateway -> here.
+httpRoute:
+  enabled: false
+  parentRefs:
+    - name: platform
+      namespace: traefik
+  # Required when enabled. An HTTPRoute with no hostnames matches EVERY host on
+  # the shared Gateway and would take other tenants' traffic; the chart refuses.
+  hostnames: []
+  # Omit for "everything to this service". Spell it out for path splits,
+  # streaming timeouts, or Traefik Middleware filters:
+  #
+  # rules:
+  #   - matches:
+  #       - path: { type: PathPrefix, value: /api/notifications/stream }
+  #     backendRefs:
+  #       - name: hrms-frontend-web-service
+  #         port: 3000
+  #     timeouts:
+  #       request: 0s          # no timeout - SSE, websockets, long polls
+  #   - matches:
+  #       - path: { type: PathPrefix, value: / }
+  #     filters:
+  #       - type: ExtensionRef
+  #         extensionRef: { group: traefik.io, kind: Middleware, name: ratelimit }
+  #     backendRefs:
+  #       - name: hrms-frontend-web-service
+  #         port: 3000
+  rules: []
+
+# Unset by default: a probe on a path that does not answer 200 turns a working
+# rollout into a CrashLoop. Set both on anything taking real traffic - without
+# them a rollout reports success before the app can serve.
+readinessProbe: {}
+  # httpGet: { path: /healthz, port: http }
+livenessProbe: {}
+  # httpGet: { path: /healthz, port: http }
+  # initialDelaySeconds: 10
+
+# Time a terminating pod keeps answering after leaving the Service endpoints.
+# Without it every rollout drops a few requests as 502/504.
+preStopSeconds: 5
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 384Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: ""
+
+metrics:
+  enabled: false
+  path: /metrics
+
+# The root filesystem is read-only. Anything the image writes - a cache, a pid
+# file, a unix socket - needs its path here or the container exits at startup.
+writableDirs:
+  - /tmp
+
+# Arbitrary extra mounts, passed through verbatim.
+volumes: []
+  # - name: settings
+  #   configMap: { name: acme-settings }
+volumeMounts: []
+  # - name: settings
+  #   mountPath: /etc/app/config.yaml
+  #   subPath: config.yaml
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
