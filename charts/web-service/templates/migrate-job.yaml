@@ -1,0 +1,81 @@
+{{- if .Values.migrate.enabled }}
+{{- $tag := .Values.migrate.image.tag | default .Values.image.tag | default .Chart.AppVersion }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Fixed name. A Job's spec is immutable, so the hook-delete-policy below is
+  # what makes a re-run possible - Helm removes the previous Job before
+  # creating this one.
+  name: {{ include "web-service.fullname" . }}-migrate
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "web-service.labels" . | nindent 4 }}
+  annotations:
+    # pre-upgrade, so a failed migration fails the release and the old pods
+    # keep serving. A post-install Job would let the new code start against a
+    # schema it cannot read.
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.migrate.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "web-service.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migrate
+          # Defaults to the application's own tag, so the schema a release
+          # migrates to is always the one that release was built against.
+          # Overriding migrate.image.tag decouples them - rarely what you want.
+          image: "{{ .Values.migrate.image.registry | default .Values.image.registry }}/{{ required "migrate.image.repository is required when migrate.enabled" .Values.migrate.image.repository }}:{{ $tag }}"
+          imagePullPolicy: {{ .Values.migrate.image.pullPolicy | default .Values.image.pullPolicy }}
+          {{- with .Values.migrate.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.migrate.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.migrate.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.migrate.envFrom | default .Values.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.migrate.securityContext | default .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            {{- range .Values.migrate.writableDirs }}
+            - name: writable-{{ . | replace "/" "-" | trimPrefix "-" }}
+              mountPath: {{ . }}
+            {{- end }}
+            {{- with .Values.migrate.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.migrate.resources | nindent 12 }}
+      volumes:
+        {{- range .Values.migrate.writableDirs }}
+        - name: writable-{{ . | replace "/" "-" | trimPrefix "-" }}
+          emptyDir: {}
+        {{- end }}
+        {{- with .Values.migrate.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

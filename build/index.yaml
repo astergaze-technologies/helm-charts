@@ -3,7 +3,18 @@ entries:
   web-service:
   - apiVersion: v2
     appVersion: 0.1.0
-    created: "2026-09-04T22:20:20.319364+05:45"
+    created: "2026-09-05T08:43:41.732381+05:45"
+    description: One deployable service - Deployment, Service, optional HTTPRoute.
+      Deploys into a namespace the tenant chart already created.
+    digest: 4b0292a53e8e71c23342258ea9b869cd5b8bbd4304ae9d21002c690c446743b7
+    name: web-service
+    type: application
+    urls:
+    - https://astergaze-technologies.github.io/helm-charts/build/web-service-0.2.0.tgz
+    version: 0.2.0
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2026-09-05T08:43:41.732035+05:45"
     description: One deployable service - Deployment, Service, optional HTTPRoute.
       Deploys into a namespace the tenant chart already created.
     digest: ace3ddcd4a3b7e2a32cb02ea4cc25b9f1479c230b1d1a8cd894bd5c6e30763e5
@@ -12,4 +23,4 @@ entries:
     urls:
     - https://astergaze-technologies.github.io/helm-charts/build/web-service-0.1.0.tgz
     version: 0.1.0
-generated: "2026-09-04T22:20:20.318544+05:45"
+generated: "2026-09-05T08:43:41.731223+05:45"

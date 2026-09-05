@@ -154,3 +154,39 @@ nodeSelector: {}
 tolerations: []
 affinity: {}
 topologySpreadConstraints: []
+
+# --- schema migrations --------------------------------------------------------
+#
+# A pre-install/pre-upgrade hook. Helm runs it to completion before touching the
+# Deployment, so a failed migration fails the release and the running pods keep
+# serving the old schema they understand.
+#
+# The image carries the migration tool and the migration files, built by the
+# application's own CI and tagged identically to the application image. That
+# lockstep is the point: `tag` below defaults to `image.tag`, so an enterprise
+# pinned to v1.4.2 migrates to the v1.4.2 schema and nothing else. Mounting
+# migrations from a ConfigMap instead caps out at 1 MiB and lets the two drift.
+migrate:
+  enabled: false
+  image:
+    # Each falls back to the application image's value when unset.
+    registry: ""
+    repository: ""
+    tag: ""
+    pullPolicy: ""
+  command: []
+  args: []
+  env: []
+  # Defaults to the application's envFrom - the same database credentials.
+  envFrom: []
+  # Two retries, then the release fails. A migration that fails twice is not
+  # going to succeed on the tenth attempt, and each try holds up the rollout.
+  backoffLimit: 2
+  writableDirs:
+    - /tmp
+  volumes: []
+  volumeMounts: []
+  securityContext: {}
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 256Mi }

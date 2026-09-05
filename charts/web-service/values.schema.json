@@ -384,6 +384,86 @@
       "items": {
         "type": "object"
       }
+    },
+    "migrate": {
+      "description": "Schema migrations as a pre-install/pre-upgrade Helm hook. The image carries the tool and the migration files and is tagged with the application, so `tag` defaults to `image.tag`.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "registry": {
+              "description": "Falls back to image.registry.",
+              "type": "string"
+            },
+            "repository": {
+              "description": "Required when enabled; the template fails at render otherwise.",
+              "type": "string"
+            },
+            "tag": {
+              "description": "Falls back to image.tag, which is what keeps schema and code in lockstep. Set it only to deliberately decouple them.",
+              "type": "string"
+            },
+            "pullPolicy": {
+              "enum": [
+                "Always",
+                "IfNotPresent",
+                "Never",
+                ""
+              ]
+            }
+          }
+        },
+        "command": {
+          "type": "array"
+        },
+        "args": {
+          "type": "array"
+        },
+        "env": {
+          "type": "array"
+        },
+        "envFrom": {
+          "description": "Falls back to the application's envFrom - the same database credentials.",
+          "type": "array"
+        },
+        "backoffLimit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "writableDirs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "volumes": {
+          "type": "array"
+        },
+        "volumeMounts": {
+          "type": "array"
+        },
+        "securityContext": {
+          "type": "object"
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "requests": {
+              "$ref": "#/definitions/resourceList"
+            },
+            "limits": {
+              "$ref": "#/definitions/resourceList"
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {
